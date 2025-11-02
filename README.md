@@ -84,9 +84,6 @@ To get a local copy up and running, follow these simple steps.
     # Your Gemini API Key from Google AI Studio
     GEMINI_API_KEY="your_api_key_here"
 
-    # Note: Your Firebase configuration is currently hard-coded in
-    # src/firebase/config.ts. For better security, you can move these
-    # to environment variables as well (e.g., NEXT_PUBLIC_FIREBASE_API_KEY).
     ```
 
 4.  **Run the Development Server:**
