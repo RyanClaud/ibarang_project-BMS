@@ -105,7 +105,7 @@ export function PaymentDialog({ isOpen, onClose, request }: PaymentDialogProps) 
 
         <DialogFooter>
           <Button onClick={onClose} variant="outline" disabled={isSubmitting}>Cancel</Button>
-           <Button onClick={handleSubmitPayment} disabled={isSubmitting || !transactionId} className="bg-gradient-to-r from-[hsl(var(--gradient-start))] to-[hsl(var(--gradient-end))] text-primary-foreground hover:opacity-90 transition-opacity">
+           <Button onClick={handleSubmitPayment} disabled={isSubmitting || !transactionId}>
                 {isSubmitting && <Loader2 className="animate-spin" />}
                 {isSubmitting ? 'Submitting...' : 'Submit Payment'}
             </Button>
