@@ -1,29 +1,24 @@
 'use client';
 
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { User } from "@/lib/types";
-import { LogOut, Settings, User as UserIcon, KeyRound } from "lucide-react";
-import Link from "next/link";
+import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/app-context";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-interface UserNavProps {
-  user: User;
-}
-
-export function UserNav({ user }: UserNavProps) {
-  const { logout } = useAppContext();
-  const router = useRouter();
+export function UserNav() {
+  const { currentUser, logout } = useAppContext();
+  const { theme, setTheme } = useTheme();
 
   const getInitials = (name: string) => {
     const names = name.split(' ');
@@ -33,51 +28,49 @@ export function UserNav({ user }: UserNavProps) {
     return name.substring(0, 2);
   };
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  if (!currentUser) {
+    return null;
   }
   
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={currentUser.avatarUrl} alt={`@${currentUser.name}`} />
+            <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{currentUser.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {currentUser.email}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href="#">
-              <UserIcon /> Profile
-            </Link>
-          </DropdownMenuItem>
-           <DropdownMenuItem asChild>
-            <Link href="/settings">
-              <KeyRound /> Change Password
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/settings">
-              <Settings /> Settings
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <Sun className="size-4" />
+              <span>Light</span>
+            </div>
+            <Switch
+              checked={theme === 'dark'}
+              onCheckedChange={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            />
+            <div className="flex items-center gap-2">
+              <Moon className="size-4" />
+              <span>Dark</span>
+            </div>
+          </div>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut /> Logout
+        <DropdownMenuItem onClick={() => logout()}>
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

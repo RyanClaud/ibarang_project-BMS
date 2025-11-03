@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
 @layer base {
   :root {
     --background: 220 20% 96%;
@@ -93,7 +89,6 @@
     animation: fadeIn 0.5s ease-in-out;
   }
 
-<<<<<<< HEAD
   .gradient-text {
     @apply bg-gradient-to-r from-[hsl(var(--gradient-start))] to-[hsl(var(--gradient-end))] bg-clip-text text-transparent;
   }
@@ -106,8 +101,6 @@
     animation: fadeIn 0.5s ease-in-out;
   }
 
-=======
->>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
   @keyframes fadeIn {
     from {
       opacity: 0;

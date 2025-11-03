@@ -1,5 +1,7 @@
 'use client';
 
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,11 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { useAppContext } from "@/contexts/app-context";
 import Link from "next/link";
 
 export function UserNav() {
   const { currentUser, logout } = useAppContext();
+  const { theme, setTheme } = useTheme();
 
   if (!currentUser) {
     return null;
@@ -47,6 +51,23 @@ export function UserNav() {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <Sun className="size-4" />
+              <span>Light</span>
+            </div>
+            <Switch
+              checked={theme === 'dark'}
+              onCheckedChange={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            />
+            <div className="flex items-center gap-2">
+              <Moon className="size-4" />
+              <span>Dark</span>
+            </div>
+          </div>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => logout()}>
           Log out
