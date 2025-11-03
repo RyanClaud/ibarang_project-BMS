@@ -1,6 +1,5 @@
 'use server';
 
-import {getDocumentRequests, getResidents} from '@/lib/firebase/data-fetchers'; // TODO: Create this file and add your data fetching logic
 /**
  * @fileOverview AI-powered insights generation for barangay data.
  *
@@ -20,6 +19,8 @@ import {z} from 'genkit';
 
 // Define the input schema for the insights generation flow
 const GenerateInsightsInputSchema = z.object({
+  residentData: z.string().describe('JSON string containing an array of resident profiles, including demographic information.'),
+  documentRequestData: z.string().describe('JSON string containing an array of document requests, including request details and status.'),
   parameters: z.string().optional().describe('Optional parameters to customize the generated insights, such as specific trends to analyze.'),
 });
 
@@ -44,13 +45,7 @@ const insightsPrompt = ai.definePrompt({
   output: {schema: GenerateInsightsOutputSchema},
   prompt: `You are an AI data analyst for a local government unit. Your task is to provide a clear, professional analysis of barangay data for the administrator.
 
-  Analyze the following resident and document request data to identify trends, potential issues, and actionable recommendations.
-
-  When analyzing, focus on:
-  - Population demographics (age groups, gender distribution).
-  - Most frequently requested documents.
-  - Document processing times or bottlenecks.
-  - Any other notable patterns or anomalies you find.
+  Analyze the following resident data and document request patterns to identify trends, potential issues, and actionable recommendations.
 
   Resident Data: {{{residentData}}}
   Document Request Data: {{{documentRequestData}}}
@@ -72,14 +67,7 @@ const generateInsightsFlow = ai.defineFlow(
     outputSchema: GenerateInsightsOutputSchema,
   },
   async input => {
-    // Fetch data directly on the server
-    const residents = await getResidents();
-    const documentRequests = await getDocumentRequests();
-
-    const residentData = JSON.stringify(residents);
-    const documentRequestData = JSON.stringify(documentRequests);
-
-    const {output} = await insightsPrompt({residentData, documentRequestData, parameters: input.parameters});
+    const {output} = await insightsPrompt(input);
     return output!;
   }
 );
