@@ -1,5 +1,7 @@
 'use client';
 
+import { useAppContext } from '@/contexts/app-context';
+import { useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   Card,
@@ -14,16 +16,7 @@ import {
   ChartTooltipContent,
   ChartConfig,
 } from '@/components/ui/chart';
-
-const chartData = [
-  { month: 'January', requests: 186 },
-  { month: 'February', requests: 305 },
-  { month: 'March', requests: 237 },
-  { month: 'April', requests: 173 },
-  { month: 'May', requests: 209 },
-  { month: 'June', requests: 214 },
-  { month: 'July', requests: 280 },
-];
+import { DocumentRequest } from '@/lib/types';
 
 const chartConfig = {
   requests: {
@@ -33,11 +26,44 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function RequestsChart() {
+  const { documentRequests } = useAppContext();
+
+  const { chartData, yearRange } = useMemo(() => {
+    if (!documentRequests || documentRequests.length === 0) {
+      return { chartData: [], yearRange: new Date().getFullYear().toString() };
+    }
+
+    const monthlyCounts: { [key: number]: number } = {};
+    let minYear = new Date().getFullYear();
+    let maxYear = new Date().getFullYear();
+
+    documentRequests.forEach((req: DocumentRequest) => {
+      const date = new Date(req.requestDate);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+
+      minYear = Math.min(minYear, year);
+      maxYear = Math.max(maxYear, year);
+
+      monthlyCounts[month] = (monthlyCounts[month] || 0) + 1;
+    });
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const data = monthNames.map((month, index) => ({
+      month: month,
+      requests: monthlyCounts[index] || 0,
+    }));
+
+    const yearDisplay = minYear === maxYear ? minYear.toString() : `${minYear} - ${maxYear}`;
+
+    return { chartData: data, yearRange: yearDisplay };
+  }, [documentRequests]);
+
   return (
     <Card className="fade-in transition-all hover:shadow-lg h-full">
       <CardHeader>
         <CardTitle>Document Requests Overview</CardTitle>
-        <CardDescription>Monthly document requests - 2024</CardDescription>
+        <CardDescription>Monthly document requests - {yearRange}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[280px] w-full">
