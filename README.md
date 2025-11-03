@@ -1,7 +1,7 @@
 # iBarangay: Digital Barangay Management System
 
 <div align="center">
-  <img src="src/app/icon.png" alt="iBarangay Logo" width="128" height="128">
+  <img src="src/app/icon.png" alt="iBarangay Logo" width="200" height="200">
 </div>
 
 <p align="center">
@@ -92,4 +92,3 @@ To get a local copy up and running, follow these simple steps.
     ```
 
     Open http://localhost:9002 with your browser to see the result.
-
