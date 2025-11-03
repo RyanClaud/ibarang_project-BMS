@@ -7,6 +7,7 @@
  * - GenerateCustomReportOutput - The return type for the generateCustomReport function.
  */
 
+import { getDocumentRequests, getResidents } from '@/firebase/data-fetchers';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 

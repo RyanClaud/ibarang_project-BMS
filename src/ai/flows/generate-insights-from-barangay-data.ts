@@ -14,6 +14,7 @@
  * @exports GenerateInsightsOutput - The output type for the generateInsights function.
  */
 
+import { getDocumentRequests, getResidents } from '@/firebase/data-fetchers';
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
