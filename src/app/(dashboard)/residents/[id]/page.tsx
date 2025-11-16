@@ -44,7 +44,7 @@ export default function ResidentProfilePage() {
     <div className="space-y-6">
        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
         <Avatar className="h-24 w-24 border-4 border-background shadow-md">
-            <AvatarImage src={resident.avatarUrl} alt={`${resident.firstName} ${resident.lastName}`} />
+            <AvatarImage src={resident.avatarUrl || undefined} alt={`${resident.firstName} ${resident.lastName}`} />
             <AvatarFallback className="text-3xl">
                 {resident.firstName?.[0]}
                 {resident.lastName?.[0]}

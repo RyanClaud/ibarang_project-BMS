@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role, BarangayConfig } from '@/lib/types';
+import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role, BarangayConfig, DocumentPricing } from '@/lib/types';
 import {
   useCollection,
   useFirebase,
@@ -24,6 +24,7 @@ interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   barangayConfig: BarangayConfig | null;
+  documentPricing: DocumentPricing | null;
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
@@ -34,7 +35,7 @@ interface AppContextType {
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus, paymentDetails?: DocumentRequest['paymentDetails']) => void;
   deleteDocumentRequest: (id: string) => void;
   users: User[] | null;
-  addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
+  addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'> & { password?: string }) => Promise<void>;
   updateUser: (dataToUpdate: Partial<User> & { id: string }) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
@@ -59,30 +60,46 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // --- Barangay Config Query ---
   const barangayConfigDocRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'barangayConfig', 'main'); // Assuming a single config doc with ID 'main'
-  }, [firestore]);
+    if (!firestore || !currentUser?.barangayId) return null;
+    return doc(firestore, 'barangays', currentUser.barangayId);
+  }, [firestore, currentUser?.barangayId]);
   const { data: barangayConfig, isLoading: isConfigLoading } = useDoc<BarangayConfig>(barangayConfigDocRef);
 
   // --- Role-based Data Fetching ---
   const isStaff = currentUser?.role !== 'Resident';
 
   // Queries for staff members
+  // Only Admin and Super Admin can see all users
+  const isAdminOrSuperAdmin = currentUser?.role === 'Admin' || currentUser?.isSuperAdmin;
+  
   const allUsersQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.id || !isStaff) return null;
-    return collection(firestore, 'users');
-  }, [firestore, currentUser?.id, isStaff]);
+    if (!firestore || !currentUser?.id || !isAdminOrSuperAdmin) return null;
+    // Super admins see all users, regular admins see only their barangay
+    if (currentUser.isSuperAdmin) {
+      return collection(firestore, 'users');
+    }
+    // Only create query if barangayId is defined
+    if (!currentUser.barangayId) return null;
+    return query(collection(firestore, 'users'), where('barangayId', '==', currentUser.barangayId));
+  }, [firestore, currentUser?.id, currentUser?.barangayId, currentUser?.isSuperAdmin, isAdminOrSuperAdmin]);
   const { data: allUsers, isLoading: isAllUsersLoading } = useCollection<User>(allUsersQuery);
 
   const allResidentsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.id || !isStaff) return null;
-    return collection(firestore, 'residents');
-  }, [firestore, currentUser?.id, isStaff]);
+    // Only staff should query all residents, NOT residents themselves
+    if (!firestore || !currentUser?.id || !currentUser?.role || !isStaff || currentUser.role === 'Resident') return null;
+    // Super admins see all residents, regular staff see only their barangay
+    if (currentUser.isSuperAdmin) {
+      return collection(firestore, 'residents');
+    }
+    // Only create query if barangayId is defined
+    if (!currentUser.barangayId) return null;
+    return query(collection(firestore, 'residents'), where('barangayId', '==', currentUser.barangayId));
+  }, [firestore, currentUser?.id, currentUser?.role, currentUser?.barangayId, currentUser?.isSuperAdmin, isStaff]);
   const { data: allResidents, isLoading: isAllResidentsLoading } = useCollection<Resident>(allResidentsQuery);
   
   // Query for a single resident's own profile
   const singleResidentDocRef = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.id || isStaff) return null;
+    if (!firestore || !currentUser?.id || isStaff || !currentUser?.residentId) return null;
     return doc(firestore, 'residents', currentUser.residentId);
   }, [firestore, currentUser, isStaff]);
   const { data: singleResident, isLoading: isSingleResidentLoading } = useDoc<Resident>(singleResidentDocRef);
@@ -90,8 +107,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // --- Combined Data Logic ---
   const users = useMemo(() => {
     if (!currentUser) return null;
-    return isStaff ? allUsers : (currentUser ? [currentUser] : []);
-  }, [currentUser, allUsers, isStaff]);
+    // Only Admin and Super Admin can see all users
+    // Other staff (Secretary, Treasurer, Captain) only see their own user document
+    if (isAdminOrSuperAdmin) {
+      return allUsers;
+    }
+    // Non-admin staff and residents only see their own user document
+    return currentUser ? [currentUser] : [];
+  }, [currentUser, allUsers, isAdminOrSuperAdmin]);
 
   const residents = useMemo(() => {
     if (!currentUser) return null;
@@ -107,8 +130,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
     }
     if (currentUser.role !== 'Resident') {
-       // Staff see all requests
-      return collection(firestore, 'documentRequests');
+      // Super admins see all requests, regular staff see only their barangay
+      if (currentUser.isSuperAdmin) {
+        return collection(firestore, 'documentRequests');
+      }
+      // Only create query if barangayId is defined
+      if (!currentUser.barangayId) return null;
+      return query(collection(firestore, 'documentRequests'), where('barangayId', '==', currentUser.barangayId));
     }
     return null;
   }, [firestore, currentUser]);
@@ -133,7 +161,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       return; // Wait for Firebase Auth to be ready
     }
 
-    const isPublicPage = pathname === '/login' || pathname === '/forgot-password';
+    const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/forgot-password' || pathname === '/register' || pathname === '/initial-setup';
 
     if (!firebaseUser) {
       // User is logged out
@@ -169,6 +197,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
             avatarUrl: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/100/100`,
             role: 'Resident', // All auto-created users default to 'Resident'
             residentId: firebaseUser.uid,
+            barangayId: 'default', // Assign to default barangay
         };
         setDoc(userDocRef, newUser).catch(err => {
             console.error("Failed to create default user document:", err);
@@ -218,13 +247,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
                 userId: userId,
                 firstName: authUser.displayName?.split(' ')[0] || 'New',
                 lastName: authUser.displayName?.split(' ').slice(1).join(' ') || 'Resident',
-                middleName: '',
+                purok: 'Not specified',
                 address: 'Not specified',
                 birthdate: new Date().toISOString().split('T')[0], // Placeholder
                 householdNumber: 'N/A',
                 email: authUser.email || '',
-                contactNumber: authUser.phoneNumber || '',
                 avatarUrl: authUser.photoURL || `https://picsum.photos/seed/${residentId}/100/100`,
+                barangayId: 'default', // Assign to default barangay
             };
             const residentRef = doc(firestore, 'residents', residentId);
             batch.set(residentRef, newResident);
@@ -236,6 +265,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
                 avatarUrl: newResident.avatarUrl,
                 role: 'Resident',
                 residentId: residentId,
+                barangayId: 'default', // Assign to default barangay
             };
             batch.set(userDocRef, newUser);
 
@@ -301,6 +331,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
+    // Check if user already exists in Firestore
+    const existingUsersQuery = query(collection(firestore, 'users'), where('email', '==', newResidentData.email), limit(1));
+    const existingUsersSnap = await getDocs(existingUsersQuery);
+    
+    if (!existingUsersSnap.empty) {
+      throw new Error("A user with this email already exists in the system.");
+    }
+    
     const defaultPassword = 'password';
     const adminUser = auth.currentUser; // Keep track of the currently logged-in admin
 
@@ -313,6 +351,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         const residentId = authUser.uid;
         const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
 
+        const barangayId = auth.currentUser?.uid ? (await getDoc(doc(firestore, 'users', auth.currentUser.uid))).data()?.barangayId || 'default' : 'default';
+        
         const newResident: Resident = {
           ...newResidentData,
           id: residentId, 
@@ -320,6 +360,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
           avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
           email: newResidentData.email,
+          barangayId: barangayId, // Inherit barangay from admin
         };
         const residentRef = doc(firestore, 'residents', residentId);
         batch.set(residentRef, newResident);
@@ -331,6 +372,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           avatarUrl: newResident.avatarUrl,
           role: 'Resident',
           residentId: residentId,
+          barangayId: barangayId, // Inherit barangay from admin
         };
         const userRef = doc(firestore, 'users', residentId);
         batch.set(userRef, newUser);
@@ -399,8 +441,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     await batch.commit();
   };
 
-  const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status' | 'referenceNumber'>) => {
-    if (!firestore || !currentUser?.residentId || !currentUser.name) {
+  const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status' | 'referenceNumber' | 'barangayId'>) => {
+    if (!firestore || !currentUser?.residentId || !currentUser.name || !currentUser.barangayId) {
        toast({
           title: 'Error',
           description: 'Could not identify the current resident. Please log in again.',
@@ -416,6 +458,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         ...request,
         residentId: currentUser.residentId,
         residentName: currentUser.name,
+        barangayId: currentUser.barangayId, // Assign to user's barangay
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         status: 'Pending',
@@ -431,41 +474,71 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const updateDocumentRequestStatus = async (id: string, status: DocumentRequestStatus, paymentDetails?: DocumentRequest['paymentDetails']) => {
-    if (!firestore) return;
-
-    const requestRef = doc(firestore, 'documentRequests', id);
-    const updateData: { [key: string]: any } = { status };
-
-    // If status is 'Approved', snapshot the resident's current data
-    if (status === 'Approved') {
-        const requestSnap = await getDoc(requestRef);
-        if (requestSnap.exists()) {
-            const requestData = requestSnap.data() as DocumentRequest;
-            const residentRef = doc(firestore, 'residents', requestData.residentId);
-            const residentSnap = await getDoc(residentRef);
-            if (residentSnap.exists()) {
-                const residentData = residentSnap.data() as Resident;
-                // Add a snapshot of resident data to the request document
-                updateData.residentSnapshot = {
-                    firstName: residentData.firstName,
-                    lastName: residentData.lastName,
-                    address: residentData.address,
-                    birthdate: residentData.birthdate,
-                };
-            }
-        }
-        updateData.approvalDate = new Date().toISOString();
-    }
-    if (status === 'Released') {
-      updateData.releaseDate = new Date().toISOString();
-    }
-    if (status === 'Paid' && paymentDetails) {
-        updateData.paymentDetails = paymentDetails;
+    if (!firestore) {
+      console.error('Firestore not initialized');
+      throw new Error('Firestore not initialized');
     }
 
+    try {
+      console.log('updateDocumentRequestStatus called:', { id, status, paymentDetails });
+      
+      const requestRef = doc(firestore, 'documentRequests', id);
+      const updateData: { [key: string]: any } = { status };
 
-    await updateDoc(requestRef, updateData);
-};
+      // If status is 'Approved', snapshot the resident's current data
+      if (status === 'Approved') {
+          const requestSnap = await getDoc(requestRef);
+          if (requestSnap.exists()) {
+              const requestData = requestSnap.data() as DocumentRequest;
+              const residentRef = doc(firestore, 'residents', requestData.residentId);
+              const residentSnap = await getDoc(residentRef);
+              if (residentSnap.exists()) {
+                  const residentData = residentSnap.data() as Resident;
+                  // Add a snapshot of resident data to the request document
+                  updateData.residentSnapshot = {
+                      firstName: residentData.firstName,
+                      lastName: residentData.lastName,
+                      address: residentData.address,
+                      birthdate: residentData.birthdate,
+                  };
+              }
+
+              // For free documents (amount = 0), automatically skip payment steps
+              if (requestData.amount === 0) {
+                  updateData.status = 'Payment Verified';
+                  updateData.paymentDetails = {
+                      method: 'Free',
+                      transactionId: 'N/A - Free Document',
+                      paymentDate: new Date().toISOString(),
+                      screenshotUrl: null,
+                  };
+                  toast({
+                      title: "Free Document Approved",
+                      description: "This document is free. Payment steps have been skipped automatically.",
+                  });
+              }
+          }
+          updateData.approvalDate = new Date().toISOString();
+      }
+      
+      if (status === 'Released') {
+        updateData.releaseDate = new Date().toISOString();
+      }
+      
+      if (status === 'Payment Submitted' && paymentDetails) {
+          updateData.paymentDetails = paymentDetails;
+          console.log('Adding payment details to update:', paymentDetails);
+      }
+
+      console.log('Updating document with data:', updateData);
+      await updateDoc(requestRef, updateData);
+      console.log('Document updated successfully');
+      
+    } catch (error) {
+      console.error('Error in updateDocumentRequestStatus:', error);
+      throw error;
+    }
+  };
   
   const deleteDocumentRequest = (id: string) => {
     if (!firestore) return;
@@ -473,18 +546,27 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     deleteDocumentNonBlocking(requestRef);
   };
 
-  const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
+  const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'> & { password?: string }) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     const adminUser = auth.currentUser;
     
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+        // Use provided password or default to 'password'
+        const password = user.password || 'password';
+        const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
         const authUser = userCredential.user;
         
+        // Ensure barangayId is set (inherit from admin if not provided)
+        const barangayId = user.barangayId || (adminUser?.uid ? (await getDoc(doc(firestore, 'users', adminUser.uid))).data()?.barangayId || 'default' : 'default');
+        
+        // Remove password from user object before saving to Firestore
+        const { password: _, ...userWithoutPassword } = user;
+        
         const newUser: User = {
-          ...user,
+          ...userWithoutPassword,
           id: authUser.uid,
           avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+          barangayId: barangayId,
         };
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser, { merge: true });
@@ -545,6 +627,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       currentUser,
       setCurrentUser,
       barangayConfig,
+      documentPricing: barangayConfig?.documentPricing || null,
       logout,
       residents,
       addResident,

@@ -1,24 +1,23 @@
 /**
- * @file Firebase Security Rules for iBarangay System
+ * @file Firebase Security Rules for iBarangay System (Multi-Barangay)
  * @description This ruleset enforces a user-ownership model for residents and their document requests,
- *               while also providing role-based access for barangay officials and administrators using a role field in the user's document.
+ *               with multi-barangay support. Users can only access data from their assigned barangay,
+ *               unless they are super admins.
  *
  * Data Structure:
- * - /users/{userId}: Stores user accounts with a 'role' field.
- * - /residents/{residentId}: Stores resident profiles, with userId for authentication.
- * - /documentRequests/{documentRequestId}: Stores document requests, linked to residents via residentId.
- * - /payments/{paymentId}: Stores payment information for document requests.
- * - /officials/{officialId}: Stores information about barangay officials.
- * - /barangayConfig/{configId}: Stores configuration settings for the barangay.
+ * - /users/{userId}: Stores user accounts with 'role' and 'barangayId' fields.
+ * - /residents/{residentId}: Stores resident profiles, scoped by barangayId.
+ * - /documentRequests/{documentRequestId}: Stores document requests, scoped by barangayId.
+ * - /payments/{paymentId}: Stores payment information, scoped by barangayId.
+ * - /officials/{officialId}: Stores barangay officials, scoped by barangayId.
+ * - /barangays/{barangayId}: Stores barangay configuration and information.
  *
  * Key Security Decisions:
- * - The user's role is stored in their document at /users/{userId}.
- * - Authenticated users can read their own user document.
- * - Residents can only read/write their own resident profile.
- * - Staff (non-residents) can read all resident profiles.
- * - Residents can only create document requests for themselves and read their own requests.
- * - Staff (non-residents) can read all document requests.
- * - Admins (role == "Admin") have the highest level of privileges.
+ * - All data is scoped by barangayId for multi-tenancy.
+ * - Users can only access data from their assigned barangay.
+ * - Super admins (isSuperAdmin == true) can access all barangays.
+ * - Residents can only read/write their own data within their barangay.
+ * - Staff can manage data within their assigned barangay.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -39,12 +38,27 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    function getUserRole(uid) {
+    function getUserData(uid) {
       let userDoc = get(/databases/$(database)/documents/users/$(uid));
       if (userDoc.data == null) {
-        return "";
+        return null;
       }
-      return userDoc.data.role;
+      return userDoc.data;
+    }
+
+    function getUserRole(uid) {
+      let userData = getUserData(uid);
+      return userData != null ? userData.role : "";
+    }
+
+    function getUserBarangayId(uid) {
+      let userData = getUserData(uid);
+      return userData != null ? userData.barangayId : "";
+    }
+
+    function isSuperAdmin() {
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && userData != null && userData.isSuperAdmin == true;
     }
 
     /**
@@ -61,64 +75,92 @@ service cloud.firestore {
       let role = getUserRole(request.auth.uid);
       return isSignedIn() && role != "Resident" && role != "";
     }
+
+    /**
+     * @description Checks if the resource belongs to the user's barangay or if user is super admin.
+     */
+    function isSameBarangay(resourceBarangayId) {
+      return isSuperAdmin() || getUserBarangayId(request.auth.uid) == resourceBarangayId;
+    }
+
+    /**
+     * @description Checks if the incoming data has the correct barangayId.
+     */
+    function hasValidBarangayId() {
+      return isSuperAdmin() || 
+        (request.resource.data.barangayId == getUserBarangayId(request.auth.uid));
+    }
     
+    /**
+     * @description Rules for the /barangays/{barangayId} collection.
+     */
+    match /barangays/{barangayId} {
+      // Allow any authenticated user to read their assigned barangay
+      allow get: if isSignedIn();
+      allow list: if isSuperAdmin();
+      allow create: if true; // Allow creation during initial setup
+      allow update: if isSuperAdmin() || (isAdmin() && isSameBarangay(barangayId));
+      allow delete: if isSuperAdmin();
+    }
+
     /**
      * @description Rules for the /users/{userId} collection.
      */
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isStaff();
+      allow list: if isStaff() || isSuperAdmin();
       allow create: if true; 
-      allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isAdmin() || isOwner(userId);
+      allow update: if isSuperAdmin() || isAdmin() || isOwner(userId);
+      allow delete: if isSuperAdmin() || isAdmin() || isOwner(userId);
     }
 
     /**
      * @description Rules for the /residents/{residentId} collection.
      */
     match /residents/{residentId} {
-      // A resident can get their own profile. Staff can get any profile.
-      allow get: if isStaff() || isOwner(residentId);
-      // Staff can list all residents. Unauthenticated users can query for a single resident (for login).
-      allow list: if isStaff() || (request.auth == null && request.query.limit == 1);
-      allow create: if true;
-      allow update: if isStaff() || isOwner(residentId);
-      allow delete: if isStaff();
+      allow get: if (isStaff() && isSameBarangay(resource.data.barangayId)) || isOwner(residentId);
+      allow list: if isStaff() && (isSuperAdmin() || 
+        request.query.limit == 1 || 
+        isSameBarangay(resource.data.barangayId));
+      allow create: if hasValidBarangayId();
+      allow update: if (isStaff() && isSameBarangay(resource.data.barangayId)) || isOwner(residentId);
+      allow delete: if isStaff() && isSameBarangay(resource.data.barangayId);
     }
 
     /**
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      // Staff can list all requests. Residents can't (they query with a where clause).
-      allow list: if isStaff();
-      // Staff can get any request. A resident can get their own.
-      allow get: if isStaff() || (resource.data.residentId == request.auth.uid);
-      // A resident can only create document requests for themselves.
-      allow create: if request.resource.data.residentId == request.auth.uid;
-      // Staff can manage any request. A resident can update/delete their own.
-      allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
+      allow list: if isStaff() && isSameBarangay(resource.data.barangayId);
+      allow get: if (isStaff() && isSameBarangay(resource.data.barangayId)) || 
+        (resource.data.residentId == request.auth.uid);
+      allow create: if request.resource.data.residentId == request.auth.uid && hasValidBarangayId();
+      allow update: if (isStaff() && isSameBarangay(resource.data.barangayId)) || 
+        (resource.data.residentId == request.auth.uid);
+      allow delete: if isStaff() && isSameBarangay(resource.data.barangayId);
     }
 
     /**
      * @description Rules for the /payments/{paymentId} collection.
-     * Payments are managed by staff.
+     * Payments are managed by staff within their barangay.
      */
     match /payments/{paymentId} {
-      allow read, write: if isStaff();
+      allow read: if isStaff() && isSameBarangay(resource.data.barangayId);
+      allow write: if isStaff() && isSameBarangay(resource.data.barangayId) && hasValidBarangayId();
     }
 
     /**
      * @description Rules for the /officials/{officialId} collection.
-     * Only Admins can manage officials.
+     * Admins can manage officials within their barangay.
      */
     match /officials/{officialId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() && isSameBarangay(resource.data.barangayId);
+      allow write: if isAdmin() && isSameBarangay(resource.data.barangayId) && hasValidBarangayId();
     }
 
     /**
-     * @description Rules for the /barangayConfig/{configId} collection.
-     * Publicly readable, but only writable by Admins.
+     * @description Rules for the /barangayConfig/{configId} collection (legacy).
+     * Kept for backward compatibility. Redirects to /barangays collection.
      */
     match /barangayConfig/{configId} {
       allow read: if true;

@@ -65,69 +65,86 @@ export function ResidentClientPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-950 rounded-lg border">
         <Input
-          placeholder="Filter by name or User ID..."
+          placeholder="🔍 Search by name or User ID..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          className="max-w-full sm:max-w-sm"
+          className="max-w-full sm:max-w-sm h-11"
         />
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="w-full sm:w-auto">
-            <FileDown />
+          <Button variant="outline" className="w-full sm:w-auto h-11">
+            <FileDown className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
-            <PlusCircle />
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto h-11 bg-purple-600 hover:bg-purple-700">
+            <PlusCircle className="mr-2 h-4 w-4" />
             Add Resident
           </Button>
         </div>
       </div>
-      <div className="rounded-md border">
+      
+      <div className="rounded-lg border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="hidden md:table-cell">User ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden sm:table-cell">Address</TableHead>
-              <TableHead className="hidden md:table-cell">Birthdate</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="hidden md:table-cell font-semibold">User ID</TableHead>
+              <TableHead className="font-semibold">Name</TableHead>
+              <TableHead className="hidden sm:table-cell font-semibold">Address</TableHead>
+              <TableHead className="hidden md:table-cell font-semibold">Birthdate</TableHead>
+              <TableHead className="text-right font-semibold">
+                Actions
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.length ? (
-              filteredData.map((resident) => (
-                <TableRow key={resident.id}>
-                  <TableCell className="font-medium hidden md:table-cell">{resident.userId}</TableCell>
+              filteredData.map((resident, index) => (
+                <TableRow 
+                  key={resident.id}
+                  className="hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="font-medium hidden md:table-cell">
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded text-xs font-mono">
+                      {resident.userId}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={resident.avatarUrl} alt={resident.firstName} />
-                        <AvatarFallback>
+                      <Avatar className="h-10 w-10 border-2 border-purple-200 dark:border-purple-800">
+                        <AvatarImage src={resident.avatarUrl || undefined} alt={resident.firstName} />
+                        <AvatarFallback className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 font-semibold">
                           {resident.firstName?.[0]}
                           {resident.lastName?.[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="font-medium">{resident.firstName} {resident.lastName}</div>
+                      <div>
+                        <div className="font-semibold">{resident.firstName} {resident.lastName}</div>
+                        <div className="text-xs text-muted-foreground md:hidden">{resident.userId}</div>
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{resident.address}</TableCell>
-                  <TableCell className="hidden md:table-cell">{resident.birthdate}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell text-muted-foreground">{resident.address}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{resident.birthdate}</TableCell>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <Button aria-haspopup="true" size="icon" variant="ghost" className="hover:bg-purple-100 dark:hover:bg-purple-900">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Toggle menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setResidentToEdit(resident)}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleViewProfile(resident.id)}>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => setResidentToDelete(resident)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewProfile(resident.id)} className="cursor-pointer">
+                          👤 View Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setResidentToEdit(resident)} className="cursor-pointer">
+                          ✏️ Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive cursor-pointer" onClick={() => setResidentToDelete(resident)}>
+                          🗑️ Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -135,8 +152,12 @@ export function ResidentClientPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No results.
+                <TableCell colSpan={6} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <span className="text-4xl">👥</span>
+                    <p className="font-medium">No residents found</p>
+                    <p className="text-sm">Try adjusting your search or add a new resident</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

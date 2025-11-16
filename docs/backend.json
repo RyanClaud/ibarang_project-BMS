@@ -35,12 +35,20 @@
             "Resident"
           ]
         },
+        "barangayId": {
+          "type": "string",
+          "description": "Reference to the Barangay this user belongs to."
+        },
         "residentId": {
           "type": "string",
           "description": "Optional reference to a Resident entity if the user is a resident."
+        },
+        "isSuperAdmin": {
+          "type": "boolean",
+          "description": "Whether the user is a super admin who can manage multiple barangays."
         }
       },
-      "required": ["id", "name", "email", "role"]
+      "required": ["id", "name", "email", "role", "barangayId"]
     },
     "Resident": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -89,6 +97,10 @@
         "contactNumber": {
           "type": "string",
           "description": "Contact number of the resident."
+        },
+        "barangayId": {
+          "type": "string",
+          "description": "Reference to the Barangay this resident belongs to."
         }
       },
       "required": [
@@ -99,7 +111,8 @@
         "address",
         "birthdate",
         "householdNumber",
-        "email"
+        "email",
+        "barangayId"
       ]
     },
     "DocumentRequest": {
@@ -147,6 +160,10 @@
           "type": "number",
           "description": "Amount due for the requested document."
         },
+        "barangayId": {
+          "type": "string",
+          "description": "Reference to the Barangay this request belongs to."
+        },
         "paymentDetails": {
           "type": "object",
           "description": "Details of the payment made for the request.",
@@ -173,7 +190,8 @@
         "documentType",
         "requestDate",
         "status",
-        "referenceNumber"
+        "referenceNumber",
+        "barangayId"
       ]
     },
     "Payment": {
@@ -256,15 +274,15 @@
         "email"
       ]
     },
-    "BarangayConfig": {
+    "Barangay": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BarangayConfig",
+      "title": "Barangay",
       "type": "object",
-      "description": "Configuration settings for the barangay.",
+      "description": "Configuration and information for a barangay in the multi-barangay system.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the BarangayConfig entity."
+          "description": "Unique identifier for the Barangay entity."
         },
         "name": {
           "type": "string",
@@ -272,19 +290,51 @@
         },
         "address": {
           "type": "string",
-          "description": "Address of the barangay."
+          "description": "Complete address of the barangay."
+        },
+        "municipality": {
+          "type": "string",
+          "description": "Municipality where the barangay is located."
+        },
+        "province": {
+          "type": "string",
+          "description": "Province where the barangay is located."
         },
         "sealLogoUrl": {
           "type": "string",
           "description": "URL of the barangay seal/logo.",
           "format": "uri"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "Contact number for the barangay office."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the barangay is currently active in the system."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the barangay was created.",
+          "format": "date-time"
         }
       },
       "required": [
         "id",
         "name",
-        "address"
+        "address",
+        "municipality",
+        "province",
+        "isActive",
+        "createdAt"
       ]
+    },
+    "BarangayConfig": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BarangayConfig",
+      "type": "object",
+      "description": "Alias for Barangay type (for backward compatibility).",
+      "$ref": "#/backend/entities/Barangay"
     }
   },
   "auth": {

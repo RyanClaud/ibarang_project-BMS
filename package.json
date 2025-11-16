@@ -9,7 +9,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cleanup:duplicates": "tsx src/scripts/remove-duplicate-now.ts"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
@@ -50,6 +51,7 @@
     "next": "15.3.3",
     "next-themes": "^0.3.0",
     "patch-package": "^8.0.0",
+    "ph-geo-admin-divisions": "^1.0.8",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

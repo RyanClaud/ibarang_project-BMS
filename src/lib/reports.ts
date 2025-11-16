@@ -74,7 +74,7 @@ const formatRevenueData = (requests: DocumentRequest[]) => {
     const monthlyRevenue: { [key: string]: number } = {};
     
     requests
-        .filter(req => req.status === 'Released' || req.status === 'Paid')
+        .filter(req => req.status === 'Released' || req.status === 'Payment Verified')
         .forEach(req => {
             const month = format(new Date(req.requestDate), 'yyyy-MM');
             if (!monthlyRevenue[month]) {

@@ -71,16 +71,24 @@ export function ChangePasswordForm() {
   };
 
   return (
-    <Card>
+    <Card className="border-t-4 border-t-blue-500 hover:shadow-xl transition-all">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950">
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-2xl">🔐</span>
+              Change Password
+            </CardTitle>
             <CardDescription>
               Update your password here. After saving, you will be logged out and will need to sign in again.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Security Tip:</strong> Use a strong password with at least 6 characters, including letters, numbers, and symbols.
+              </p>
+            </div>
             <FormField
               control={form.control}
               name="currentPassword"
@@ -88,7 +96,12 @@ export function ChangePasswordForm() {
                 <FormItem>
                   <FormLabel>Current Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="Enter your current password" 
+                      className="h-11"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -101,7 +114,12 @@ export function ChangePasswordForm() {
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="Enter your new password (min. 6 characters)" 
+                      className="h-11"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -114,17 +132,25 @@ export function ChangePasswordForm() {
                 <FormItem>
                   <FormLabel>Confirm New Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="Re-enter your new password" 
+                      className="h-11"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSaving}>
+          <CardFooter className="bg-muted/50 flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">
+              You'll be logged out after changing your password
+            </p>
+            <Button type="submit" disabled={isSaving} size="lg">
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSaving ? 'Saving...' : 'Save Password'}
+              {isSaving ? 'Updating...' : 'Update Password'}
             </Button>
           </CardFooter>
         </form>

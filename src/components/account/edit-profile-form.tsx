@@ -25,8 +25,10 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/app-context';
 import { useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, Mail, MapPin, Home, Hash, Calendar } from 'lucide-react';
 import type { Resident } from '@/lib/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 
 const profileSchema = z.object({
@@ -94,37 +96,77 @@ export function EditProfileForm() {
   
   if (!resident) {
     return (
-        <Card>
+        <Card className="border-t-4 border-t-purple-500">
             <CardHeader>
                 <CardTitle>Edit Profile</CardTitle>
             </CardHeader>
-            <CardContent>
-                <Loader2 className="animate-spin" />
+            <CardContent className="flex justify-center items-center p-8">
+                <Loader2 className="animate-spin h-8 w-8 text-primary" />
             </CardContent>
         </Card>
     )
   }
 
   return (
-    <Card>
+    <Card className="border-t-4 border-t-purple-500 hover:shadow-xl transition-all">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle>Edit Profile</CardTitle>
-            <CardDescription>
-              Update your personal information here.
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-950">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <User className="h-6 w-6 text-purple-600" />
+              Edit Profile
+            </CardTitle>
+            <CardDescription className="text-base">
+              Update your personal information and contact details
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <FormField
+          <CardContent className="space-y-6 pt-6">
+            {/* Profile Header with Avatar */}
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+              <Avatar className="h-20 w-20 border-4 border-purple-300 dark:border-purple-700">
+                <AvatarImage src={resident.avatarUrl || undefined} alt={resident.firstName} />
+                <AvatarFallback className="bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 text-2xl font-bold">
+                  {resident.firstName?.[0]}
+                  {resident.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold">{resident.firstName} {resident.lastName}</h3>
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                  <Mail className="h-3 w-3" />
+                  {resident.email}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  User ID: <span className="font-mono font-semibold">{resident.userId}</span>
+                </p>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Editable Fields Section */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-purple-600" />
+                Location Information
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
                   control={form.control}
                   name="purok"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Purok / Sitio</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-purple-600" />
+                        Purok / Sitio
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Purok 1" {...field} />
+                        <Input 
+                          placeholder="e.g., Purok 1, Sitio Riverside" 
+                          className="h-11"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -135,25 +177,95 @@ export function EditProfileForm() {
                   name="householdNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Household No.</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-purple-600" />
+                        Household Number
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="HH-001" {...field} />
+                        <Input 
+                          placeholder="e.g., HH-001" 
+                          className="h-11"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              </div>
             </div>
-            <div className="space-y-1 rounded-md bg-muted p-3 text-sm">
-                <p><span className="font-semibold">Name:</span> {resident.firstName} {resident.lastName}</p>
-                <p><span className="font-semibold">Email:</span> {resident.email}</p>
-                <p className="text-xs text-muted-foreground pt-1">Your name and email cannot be changed here. Please contact an administrator for assistance.</p>
+
+            <Separator />
+
+            {/* Read-Only Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-lg flex items-center gap-2">
+                <User className="h-5 w-5 text-purple-600" />
+                Personal Information
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Full Name
+                  </label>
+                  <div className="p-3 bg-muted rounded-lg border">
+                    <p className="font-semibold">{resident.firstName} {resident.lastName}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email Address
+                  </label>
+                  <div className="p-3 bg-muted rounded-lg border">
+                    <p className="font-semibold text-sm">{resident.email}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Date of Birth
+                  </label>
+                  <div className="p-3 bg-muted rounded-lg border">
+                    <p className="font-semibold">{resident.birthdate}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Complete Address
+                  </label>
+                  <div className="p-3 bg-muted rounded-lg border">
+                    <p className="font-semibold text-sm">{resident.address}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>ℹ️ Note:</strong> Your name, email, birthdate, and full address cannot be changed here. 
+                  Please contact your barangay administrator for assistance with these fields.
+                </p>
+              </div>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSaving}>
+          <CardFooter className="bg-muted/50 flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              Changes will be saved immediately
+            </p>
+            <Button 
+              type="submit" 
+              disabled={isSaving}
+              size="lg"
+              className="bg-purple-600 hover:bg-purple-700"
+            >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? 'Saving Changes...' : 'Save Changes'}
             </Button>
           </CardFooter>
         </form>

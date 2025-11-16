@@ -32,6 +32,7 @@ const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
   role: z.enum(["Admin", "Barangay Captain", "Secretary", "Treasurer"]),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -52,6 +53,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
       name: '',
       email: '',
       role: 'Secretary',
+      password: '',
     },
   });
 
@@ -61,7 +63,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
         await onAddUser(data);
         toast({
             title: 'User Added',
-            description: `${data.name} has been added as a system user. Their default password is 'password'.`,
+            description: `${data.name} has been added as a system user. Password: ${data.password}`,
         });
         form.reset();
         onClose();
@@ -82,7 +84,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
-            Enter the details of the new staff or official. The default password is `password`.
+            Enter the details of the new staff or official. Set a secure password for their account.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -132,6 +134,26 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="password" 
+                      placeholder="Minimum 6 characters" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  <p className="text-xs text-muted-foreground">
+                    User can change this password after logging in
+                  </p>
                 </FormItem>
               )}
             />

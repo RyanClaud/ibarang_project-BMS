@@ -11,7 +11,9 @@ import { useMemo } from "react";
 const statusColors: Record<DocumentRequestStatus, string> = {
   Pending: "bg-amber-500",
   Approved: "bg-sky-500",
-  Paid: "bg-blue-500",
+  "Payment Submitted": "bg-purple-500",
+  "Payment Verified": "bg-blue-500",
+  "Ready for Pickup": "bg-emerald-500",
   Released: "bg-green-500",
   Rejected: "bg-red-500",
 };
@@ -26,8 +28,8 @@ export function RecentActivity() {
   }, [documentRequests]);
 
   return (
-    <Card className="fade-in transition-all hover:shadow-lg h-full">
-      <CardHeader>
+    <Card className="fade-in transition-all hover:shadow-xl h-full border-t-4 border-t-blue-500">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950">
         <CardTitle>Recent Activity</CardTitle>
         <CardDescription>An overview of the latest document requests.</CardDescription>
       </CardHeader>

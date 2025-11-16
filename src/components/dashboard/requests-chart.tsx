@@ -60,8 +60,8 @@ export function RequestsChart() {
   }, [documentRequests]);
 
   return (
-    <Card className="fade-in transition-all hover:shadow-lg h-full">
-      <CardHeader>
+    <Card className="fade-in transition-all hover:shadow-xl h-full border-t-4 border-t-green-500">
+      <CardHeader className="bg-gradient-to-r from-green-50 to-transparent dark:from-green-950">
         <CardTitle>Document Requests Overview</CardTitle>
         <CardDescription>Monthly document requests - {yearRange}</CardDescription>
       </CardHeader>

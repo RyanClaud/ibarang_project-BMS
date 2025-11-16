@@ -24,7 +24,7 @@ export function PaymentsClientPage() {
   const { documentRequests } = useAppContext();
   
   const recentPayments = (documentRequests || [])
-    .filter(req => req.status === 'Paid' || req.status === 'Released')
+    .filter(req => req.status === 'Payment Verified' || req.status === 'Ready for Pickup' || req.status === 'Released')
     .sort((a,b) => new Date(b.paymentDetails?.paymentDate || 0).getTime() - new Date(a.paymentDetails?.paymentDate || 0).getTime())
     .slice(0, 10);
 
@@ -56,7 +56,8 @@ export function PaymentsClientPage() {
                     </TableCell>
                     <TableCell>₱{req.amount.toFixed(2)}</TableCell>
                     <TableCell>
-                      {req.status === 'Paid' && <Badge variant="secondary" className="bg-blue-100 text-blue-800">Paid</Badge>}
+                      {req.status === 'Payment Verified' && <Badge variant="secondary" className="bg-blue-100 text-blue-800">Verified</Badge>}
+                      {req.status === 'Ready for Pickup' && <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">Ready</Badge>}
                       {req.status === 'Released' && <Badge variant="secondary" className="bg-green-100 text-green-800">Released</Badge>}
                     </TableCell>
                   </TableRow>
