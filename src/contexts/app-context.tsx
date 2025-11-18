@@ -53,6 +53,12 @@ let adminCredentials: { email: string; password: string } | null = null;
 // Lock to prevent auth state changes during user creation
 let isCreatingUser = false;
 
+// Helper to check if we're in user creation mode (persists across re-renders)
+const isInUserCreationMode = () => {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem('creating_user') === 'true' || isCreatingUser;
+};
+
 
 function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth, storage } = useFirebase();
@@ -64,7 +70,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // --- Barangay Config Query ---
   const barangayConfigDocRef = useMemoFirebase(() => {
     // CRITICAL: Don't create queries during user creation
-    if (isCreatingUser) {
+    if (isInUserCreationMode()) {
       console.log('🔒 Barangay config query blocked - user creation in progress');
       return null;
     }
@@ -82,7 +88,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   
   const allUsersQuery = useMemoFirebase(() => {
     // CRITICAL: Don't create queries during user creation
-    if (isCreatingUser) {
+    if (isInUserCreationMode()) {
       console.log('🔒 Users query blocked - user creation in progress');
       return null;
     }
@@ -99,7 +105,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const allResidentsQuery = useMemoFirebase(() => {
     // CRITICAL: Don't create queries during user creation
-    if (isCreatingUser) {
+    if (isInUserCreationMode()) {
       console.log('🔒 Residents query blocked - user creation in progress');
       return null;
     }
@@ -143,7 +149,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // --- Document Requests Query (works for both roles) ---
   const documentRequestsQuery = useMemoFirebase(() => {
     // CRITICAL: Don't create queries during user creation
-    if (isCreatingUser) {
+    if (isInUserCreationMode()) {
       console.log('🔒 Document requests query blocked - user creation in progress');
       return null;
     }
@@ -185,7 +191,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
 
     // CRITICAL: Don't process auth changes during user creation
-    if (isCreatingUser) {
+    if (isInUserCreationMode()) {
       console.log('🔒 Auth state change blocked - user creation in progress');
       return;
     }
@@ -584,9 +590,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       throw new Error("Admin session not properly initialized. Please log out and log back in.");
     }
     
-    // CRITICAL: Set lock to prevent auth state changes
+    // CRITICAL: Set lock to prevent auth state changes (both in memory and sessionStorage)
     isCreatingUser = true;
-    console.log('🔒 User creation lock ENABLED');
+    sessionStorage.setItem('creating_user', 'true');
+    console.log('🔒 User creation lock ENABLED (memory + sessionStorage)');
     
     const password = user.password || 'password';
     const barangayId = user.barangayId || currentUser.barangayId || 'default';
@@ -632,28 +639,32 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         console.log('✅ Admin re-authenticated');
         
         // Step 7: Wait for auth state to stabilize
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased wait time
         
         // Step 8: Release the lock
         isCreatingUser = false;
-        console.log('🔓 User creation lock RELEASED');
+        sessionStorage.removeItem('creating_user');
+        console.log('🔓 User creation lock RELEASED (memory + sessionStorage)');
 
     } catch (error: any) {
         console.error('❌ Error creating user:', error);
         
         // CRITICAL: Always release the lock, even on error
         isCreatingUser = false;
-        console.log('🔓 User creation lock RELEASED (error recovery)');
+        sessionStorage.removeItem('creating_user');
+        console.log('🔓 User creation lock RELEASED (error recovery - memory + sessionStorage)');
         
         // Emergency recovery: Force admin back in
         try {
           await signOut(auth);
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 500));
           await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+          await new Promise(resolve => setTimeout(resolve, 500));
           console.log('✅ Admin session recovered');
         } catch (reAuthError) {
           console.error('❌ Failed to recover admin session:', reAuthError);
           // Last resort: reload page and force login
+          sessionStorage.removeItem('creating_user');
           window.location.href = '/login';
         }
 
