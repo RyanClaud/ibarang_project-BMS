@@ -20,13 +20,18 @@ export default function UsersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Security: Only Admin can access this page
+  // Security: Only Admin and Barangay Captain can access this page
   useEffect(() => {
     if (!isDataLoading && currentUser) {
-      if (currentUser.role !== 'Admin' && !currentUser.isSuperAdmin) {
+      const canAccessUserManagement = 
+        currentUser.role === 'Admin' || 
+        currentUser.role === 'Barangay Captain' ||
+        currentUser.isSuperAdmin;
+        
+      if (!canAccessUserManagement) {
         toast({
           title: 'Access Denied',
-          description: 'Only administrators can access the staff management page.',
+          description: 'Only administrators and barangay captains can access the staff management page.',
           variant: 'destructive',
         });
         router.push('/dashboard');

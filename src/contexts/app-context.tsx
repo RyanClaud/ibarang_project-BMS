@@ -548,6 +548,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'> & { password?: string }) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
+    if (!currentUser) throw new Error("You must be logged in to create users.");
+    
     const adminUser = auth.currentUser;
     
     try {
@@ -556,8 +558,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
         const authUser = userCredential.user;
         
-        // Ensure barangayId is set (inherit from admin if not provided)
-        const barangayId = user.barangayId || (adminUser?.uid ? (await getDoc(doc(firestore, 'users', adminUser.uid))).data()?.barangayId || 'default' : 'default');
+        // Get barangayId from the logged-in admin (currentUser from context)
+        // This ensures the new user is created in the same barangay as the admin
+        const barangayId = user.barangayId || currentUser.barangayId || 'default';
+        
+        console.log('Creating user with barangayId:', barangayId);
+        console.log('Admin barangayId:', currentUser.barangayId);
         
         // Remove password from user object before saving to Firestore
         const { password: _, ...userWithoutPassword } = user;
@@ -575,6 +581,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser);
 
+        console.log('User created successfully:', newUser);
+
         // After creating the user, sign them out and sign the admin back in.
         if (auth.currentUser?.uid === authUser.uid && adminUser) {
             await signOut(auth);
@@ -584,6 +592,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         }
 
     } catch (error: any) {
+        console.error('Error creating user:', error);
+        
         if (adminCredentials && auth.currentUser?.email !== adminCredentials.email) {
           await reSignInAdmin();
         }
@@ -591,7 +601,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         if (error.code === 'auth/email-already-in-use') {
             throw new Error("An account for this email already exists.");
         }
-        throw new Error("Failed to create user account.");
+        throw new Error("Failed to create user account: " + (error.message || 'Unknown error'));
     }
   };
 

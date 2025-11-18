@@ -29,8 +29,8 @@ function AdminSettings() {
 
   const { currentUser: contextUser } = useAppContext();
   
-  // Check if user is Admin or Super Admin (only they can manage users)
-  const canManageUsers = contextUser?.role === 'Admin' || contextUser?.isSuperAdmin;
+  // Check if user is Admin, Barangay Captain, or Super Admin (they can manage users)
+  const canManageUsers = contextUser?.role === 'Admin' || contextUser?.role === 'Barangay Captain' || contextUser?.isSuperAdmin;
 
   useEffect(() => {
     const fetchConfig = async () => {
