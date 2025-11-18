@@ -50,6 +50,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Store admin credentials in memory ONLY. This is not secure for production but works for this dev environment.
 let adminCredentials: { email: string; password: string } | null = null;
 
+// Lock to prevent auth state changes during user creation
+let isCreatingUser = false;
+
 
 function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth, storage } = useFirebase();
@@ -159,6 +162,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthLoading) {
       return; // Wait for Firebase Auth to be ready
+    }
+
+    // CRITICAL: Don't process auth changes during user creation
+    if (isCreatingUser) {
+      console.log('🔒 Auth state change blocked - user creation in progress');
+      return;
     }
 
     const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/forgot-password' || pathname === '/register' || pathname === '/initial-setup';
@@ -555,6 +564,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       throw new Error("Admin session not properly initialized. Please log out and log back in.");
     }
     
+    // CRITICAL: Set lock to prevent auth state changes
+    isCreatingUser = true;
+    console.log('🔒 User creation lock ENABLED');
+    
     const password = user.password || 'password';
     const barangayId = user.barangayId || currentUser.barangayId || 'default';
     
@@ -600,9 +613,17 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         
         // Step 7: Wait for auth state to stabilize
         await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Step 8: Release the lock
+        isCreatingUser = false;
+        console.log('🔓 User creation lock RELEASED');
 
     } catch (error: any) {
         console.error('❌ Error creating user:', error);
+        
+        // CRITICAL: Always release the lock, even on error
+        isCreatingUser = false;
+        console.log('🔓 User creation lock RELEASED (error recovery)');
         
         // Emergency recovery: Force admin back in
         try {
