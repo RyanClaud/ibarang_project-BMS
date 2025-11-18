@@ -597,8 +597,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         console.log('✅ User document created in Firestore');
         
         // IMPORTANT: Sign out the newly created user and sign admin back in
+        // Add a small delay to let Firestore sync
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         await signOut(auth);
         console.log('✅ Signed out new user');
+        
+        // Wait a bit before signing back in
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Sign admin back in
         if (adminEmail && adminPassword) {
