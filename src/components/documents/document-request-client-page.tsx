@@ -83,7 +83,7 @@ export function DocumentRequestClientPage() {
   ).sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
 
   // Role-based permissions
-  const canApprove = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain';
+  const canApprove = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain' || currentUser?.role === 'Secretary';
   const canVerifyPayment = currentUser?.role === 'Admin' || currentUser?.role === 'Treasurer';
   const canMarkReady = currentUser?.role === 'Admin' || currentUser?.role === 'Secretary';
   const canRelease = currentUser?.role === 'Admin' || currentUser?.role === 'Secretary';
@@ -189,6 +189,18 @@ export function DocumentRequestClientPage() {
                       <Badge variant="outline" className={cn("font-semibold text-xs", statusColors[request.status])}>
                         {request.status}
                       </Badge>
+                      {/* Show Approve button for staff when pending */}
+                      {canApprove && request.status === 'Pending' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleStatusChange(request.id, 'Approved')}
+                          className="w-full bg-sky-600 hover:bg-sky-700"
+                        >
+                          <CheckCircle className="mr-2 h-3 w-3" />
+                          Approve
+                        </Button>
+                      )}
                       {/* Show Upload Payment button for residents when approved (only if amount > 0) */}
                       {isResident && request.status === 'Approved' && request.residentId === currentUser?.id && request.amount > 0 && (
                         <Button
