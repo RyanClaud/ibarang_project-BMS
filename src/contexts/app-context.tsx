@@ -550,90 +550,76 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     if (!currentUser) throw new Error("You must be logged in to create users.");
     
-    // Store admin credentials before creating new user
-    const adminEmail = auth.currentUser?.email;
-    const adminPassword = adminCredentials?.password;
+    // CRITICAL: Verify admin credentials are stored
+    if (!adminCredentials?.email || !adminCredentials?.password) {
+      throw new Error("Admin session not properly initialized. Please log out and log back in.");
+    }
+    
+    const password = user.password || 'password';
+    const barangayId = user.barangayId || currentUser.barangayId || 'default';
+    
+    console.log('=== Creating Staff User ===');
+    console.log('Role:', user.role);
+    console.log('Email:', user.email);
+    console.log('BarangayId:', barangayId);
     
     try {
-        // Use provided password or default to 'password'
-        const password = user.password || 'password';
-        
-        // Get barangayId from the logged-in admin (currentUser from context)
-        const barangayId = user.barangayId || currentUser.barangayId || 'default';
-        
-        console.log('=== Creating User ===');
-        console.log('Role from form:', user.role);
-        console.log('Email:', user.email);
-        console.log('barangayId:', barangayId);
-        console.log('Admin barangayId:', currentUser.barangayId);
-        
-        // Create the authentication account
+        // Step 1: Create the authentication account
         const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
         const authUser = userCredential.user;
-        
         console.log('✅ Auth account created:', authUser.uid);
         
-        // Remove password from user object before saving to Firestore
-        const { password: _, ...userWithoutPassword } = user;
-        
-        // Create user document with explicit fields to ensure role is saved correctly
-        const newUser: any = {
+        // Step 2: IMMEDIATELY create user document BEFORE any auth state changes
+        const newUser: User = {
           id: authUser.uid,
           name: user.name,
           email: user.email,
-          role: user.role, // Explicitly set role
+          role: user.role,
           barangayId: barangayId,
           avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
           isSuperAdmin: false,
         };
         
-        console.log('=== Saving to Firestore ===');
-        console.log('Role being saved:', newUser.role);
-        console.log('Full document:', JSON.stringify(newUser, null, 2));
-        
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser);
-
-        console.log('✅ User document created in Firestore');
+        console.log('✅ User document created with role:', newUser.role);
         
-        // IMPORTANT: Sign out the newly created user and sign admin back in
-        // Add a small delay to let Firestore sync
+        // Step 3: Wait a moment to ensure Firestore write is complete
         await new Promise(resolve => setTimeout(resolve, 500));
         
+        // Step 4: Sign out the new user IMMEDIATELY
         await signOut(auth);
-        console.log('✅ Signed out new user');
+        console.log('✅ New user signed out');
         
-        // Wait a bit before signing back in
+        // Step 5: Wait another moment before re-auth
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        // Sign admin back in
-        if (adminEmail && adminPassword) {
-          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          console.log('✅ Admin signed back in');
-        } else if (adminCredentials) {
-          await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
-          console.log('✅ Admin signed back in via stored credentials');
-        }
+        // Step 6: Re-authenticate as admin
+        await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+        console.log('✅ Admin re-authenticated');
         
-        console.log('=== User Creation Complete ===');
+        // Step 7: Wait for auth state to stabilize
+        await new Promise(resolve => setTimeout(resolve, 500));
 
     } catch (error: any) {
         console.error('❌ Error creating user:', error);
         
-        // Try to sign admin back in if something went wrong
-        if (adminEmail && adminPassword) {
-          try {
-            await signOut(auth);
-            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          } catch (reAuthError) {
-            console.error('Failed to re-authenticate admin:', reAuthError);
-          }
+        // Emergency recovery: Force admin back in
+        try {
+          await signOut(auth);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+          console.log('✅ Admin session recovered');
+        } catch (reAuthError) {
+          console.error('❌ Failed to recover admin session:', reAuthError);
+          // Last resort: reload page and force login
+          window.location.href = '/login';
         }
 
         if (error.code === 'auth/email-already-in-use') {
             throw new Error("An account for this email already exists.");
         }
-        throw new Error("Failed to create user account: " + (error.message || 'Unknown error'));
+        throw new Error(error.message || 'Failed to create user account');
     }
   };
 

@@ -41,11 +41,12 @@ interface AddUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAddUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
+  isCreating?: boolean;
 }
 
 const ROLES: Role[] = ["Admin", "Barangay Captain", "Secretary", "Treasurer"];
 
-export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps) {
+export function AddUserDialog({ isOpen, onClose, onAddUser, isCreating = false }: AddUserDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -58,19 +59,28 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
   });
 
   const onSubmit = async (data: UserFormData) => {
+    console.log('=== Add User Dialog Submit ===');
+    console.log('Form data:', data);
+    console.log('Role from form:', data.role);
+    
     setIsSubmitting(true);
     try {
         await onAddUser(data);
+        
+        // Show success message with password
         toast({
-            title: 'User Added',
-            description: `${data.name} has been added as a system user. Password: ${data.password}`,
+            title: 'Staff Account Created Successfully',
+            description: `${data.name} can now log in with email: ${data.email} and password: ${data.password}`,
+            duration: 8000, // Show longer so they can copy the password
         });
+        
         form.reset();
         onClose();
     } catch (error: any) {
+        console.error('Error in dialog:', error);
         toast({
-            title: 'Failed to Add User',
-            description: error.message || "An unexpected error occurred.",
+            title: 'Failed to Create Staff Account',
+            description: error.message || "An unexpected error occurred. Please try again.",
             variant: "destructive"
         });
     } finally {
@@ -159,11 +169,11 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
             />
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                 <DialogClose asChild>
-                    <Button type="button" variant="ghost" disabled={isSubmitting}>Cancel</Button>
+                    <Button type="button" variant="ghost" disabled={isSubmitting || isCreating}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="animate-spin" />}
-                  {isSubmitting ? 'Saving...' : 'Save User'}
+                <Button type="submit" disabled={isSubmitting || isCreating}>
+                  {(isSubmitting || isCreating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isCreating ? 'Creating Account...' : isSubmitting ? 'Saving...' : 'Create Staff Account'}
                 </Button>
             </DialogFooter>
           </form>

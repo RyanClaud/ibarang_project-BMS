@@ -19,6 +19,8 @@ export default function UsersPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [lastCreationTime, setLastCreationTime] = useState<number>(0);
 
   // Security: Only Admin and Barangay Captain can access this page
   useEffect(() => {
@@ -214,8 +216,37 @@ export default function UsersPage() {
 
       <AddUserDialog
         isOpen={isAddDialogOpen}
-        onClose={() => setIsAddDialogOpen(false)}
-        onAddUser={addUser}
+        onClose={() => !isCreatingUser && setIsAddDialogOpen(false)}
+        onAddUser={async (userData) => {
+          // Prevent rapid successive creations
+          const now = Date.now();
+          const timeSinceLastCreation = now - lastCreationTime;
+          if (timeSinceLastCreation < 3000) {
+            toast({
+              title: 'Please Wait',
+              description: `Please wait ${Math.ceil((3000 - timeSinceLastCreation) / 1000)} more seconds before creating another user.`,
+              variant: 'default',
+            });
+            throw new Error('Please wait before creating another user');
+          }
+          
+          setIsCreatingUser(true);
+          try {
+            await addUser(userData);
+            setLastCreationTime(Date.now());
+            setIsAddDialogOpen(false);
+            toast({
+              title: 'Staff Account Created',
+              description: `${userData.name} has been added as ${userData.role}. They can now log in with their email and password.`,
+            });
+          } catch (error: any) {
+            // Error toast is already shown in the dialog
+            throw error;
+          } finally {
+            setIsCreatingUser(false);
+          }
+        }}
+        isCreating={isCreatingUser}
       />
 
       {selectedUser && (
