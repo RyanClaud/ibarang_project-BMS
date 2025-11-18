@@ -569,14 +569,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         const { password: _, ...userWithoutPassword } = user;
         
         // Create user document - staff members should NOT have residentId
-        const newUser: User = {
+        const newUser: any = {
           ...userWithoutPassword,
           id: authUser.uid,
           avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
           barangayId: barangayId,
-          // Explicitly set residentId to undefined for staff members
-          residentId: undefined,
         };
+        
+        // Don't include residentId field at all for staff members
+        // (Firestore doesn't accept undefined values)
         
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser);
