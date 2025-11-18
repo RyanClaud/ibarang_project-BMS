@@ -562,7 +562,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         // This ensures the new user is created in the same barangay as the admin
         const barangayId = user.barangayId || currentUser.barangayId || 'default';
         
-        console.log('Creating user with barangayId:', barangayId);
+        console.log('=== Creating User ===');
+        console.log('Input user data:', user);
+        console.log('Role from form:', user.role);
+        console.log('barangayId:', barangayId);
         console.log('Admin barangayId:', currentUser.barangayId);
         
         // Remove password from user object before saving to Firestore
@@ -579,10 +582,16 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         // Don't include residentId field at all for staff members
         // (Firestore doesn't accept undefined values)
         
+        console.log('=== Saving to Firestore ===');
+        console.log('Document data:', JSON.stringify(newUser, null, 2));
+        
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser);
 
-        console.log('User created successfully:', newUser);
+        console.log('✅ User created successfully in Firestore');
+        console.log('User ID:', authUser.uid);
+        console.log('Role:', newUser.role);
+        console.log('BarangayId:', newUser.barangayId);
 
         // After creating the user, sign them out and sign the admin back in.
         if (auth.currentUser?.uid === authUser.uid && adminUser) {
