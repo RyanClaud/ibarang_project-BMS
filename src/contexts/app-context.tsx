@@ -63,6 +63,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // --- Barangay Config Query ---
   const barangayConfigDocRef = useMemoFirebase(() => {
+    // CRITICAL: Don't create queries during user creation
+    if (isCreatingUser) {
+      console.log('🔒 Barangay config query blocked - user creation in progress');
+      return null;
+    }
     if (!firestore || !currentUser?.barangayId) return null;
     return doc(firestore, 'barangays', currentUser.barangayId);
   }, [firestore, currentUser?.barangayId]);
@@ -76,6 +81,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const isAdminOrSuperAdmin = currentUser?.role === 'Admin' || currentUser?.isSuperAdmin;
   
   const allUsersQuery = useMemoFirebase(() => {
+    // CRITICAL: Don't create queries during user creation
+    if (isCreatingUser) {
+      console.log('🔒 Users query blocked - user creation in progress');
+      return null;
+    }
     if (!firestore || !currentUser?.id || !isAdminOrSuperAdmin) return null;
     // Super admins see all users, regular admins see only their barangay
     if (currentUser.isSuperAdmin) {
@@ -88,6 +98,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { data: allUsers, isLoading: isAllUsersLoading } = useCollection<User>(allUsersQuery);
 
   const allResidentsQuery = useMemoFirebase(() => {
+    // CRITICAL: Don't create queries during user creation
+    if (isCreatingUser) {
+      console.log('🔒 Residents query blocked - user creation in progress');
+      return null;
+    }
     // Only staff should query all residents, NOT residents themselves
     if (!firestore || !currentUser?.id || !currentUser?.role || !isStaff || currentUser.role === 'Resident') return null;
     // Super admins see all residents, regular staff see only their barangay
@@ -127,6 +142,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // --- Document Requests Query (works for both roles) ---
   const documentRequestsQuery = useMemoFirebase(() => {
+    // CRITICAL: Don't create queries during user creation
+    if (isCreatingUser) {
+      console.log('🔒 Document requests query blocked - user creation in progress');
+      return null;
+    }
     if (!firestore || !currentUser) return null;
     if (currentUser.role === 'Resident' && currentUser.id) {
       // Residents see only their own requests
