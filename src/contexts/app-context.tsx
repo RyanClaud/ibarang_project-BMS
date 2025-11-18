@@ -550,62 +550,78 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     if (!currentUser) throw new Error("You must be logged in to create users.");
     
-    const adminUser = auth.currentUser;
+    // Store admin credentials before creating new user
+    const adminEmail = auth.currentUser?.email;
+    const adminPassword = adminCredentials?.password;
     
     try {
         // Use provided password or default to 'password'
         const password = user.password || 'password';
-        const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
-        const authUser = userCredential.user;
         
         // Get barangayId from the logged-in admin (currentUser from context)
-        // This ensures the new user is created in the same barangay as the admin
         const barangayId = user.barangayId || currentUser.barangayId || 'default';
         
         console.log('=== Creating User ===');
-        console.log('Input user data:', user);
         console.log('Role from form:', user.role);
+        console.log('Email:', user.email);
         console.log('barangayId:', barangayId);
         console.log('Admin barangayId:', currentUser.barangayId);
+        
+        // Create the authentication account
+        const userCredential = await createUserWithEmailAndPassword(auth, user.email, password);
+        const authUser = userCredential.user;
+        
+        console.log('✅ Auth account created:', authUser.uid);
         
         // Remove password from user object before saving to Firestore
         const { password: _, ...userWithoutPassword } = user;
         
-        // Create user document - staff members should NOT have residentId
+        // Create user document with explicit fields to ensure role is saved correctly
         const newUser: any = {
-          ...userWithoutPassword,
           id: authUser.uid,
-          avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+          name: user.name,
+          email: user.email,
+          role: user.role, // Explicitly set role
           barangayId: barangayId,
+          avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+          isSuperAdmin: false,
         };
         
-        // Don't include residentId field at all for staff members
-        // (Firestore doesn't accept undefined values)
-        
         console.log('=== Saving to Firestore ===');
-        console.log('Document data:', JSON.stringify(newUser, null, 2));
+        console.log('Role being saved:', newUser.role);
+        console.log('Full document:', JSON.stringify(newUser, null, 2));
         
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser);
 
-        console.log('✅ User created successfully in Firestore');
-        console.log('User ID:', authUser.uid);
-        console.log('Role:', newUser.role);
-        console.log('BarangayId:', newUser.barangayId);
-
-        // After creating the user, sign them out and sign the admin back in.
-        if (auth.currentUser?.uid === authUser.uid && adminUser) {
-            await signOut(auth);
-            if(adminCredentials) {
-              await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
-            }
+        console.log('✅ User document created in Firestore');
+        
+        // IMPORTANT: Sign out the newly created user and sign admin back in
+        await signOut(auth);
+        console.log('✅ Signed out new user');
+        
+        // Sign admin back in
+        if (adminEmail && adminPassword) {
+          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+          console.log('✅ Admin signed back in');
+        } else if (adminCredentials) {
+          await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+          console.log('✅ Admin signed back in via stored credentials');
         }
+        
+        console.log('=== User Creation Complete ===');
 
     } catch (error: any) {
-        console.error('Error creating user:', error);
+        console.error('❌ Error creating user:', error);
         
-        if (adminCredentials && auth.currentUser?.email !== adminCredentials.email) {
-          await reSignInAdmin();
+        // Try to sign admin back in if something went wrong
+        if (adminEmail && adminPassword) {
+          try {
+            await signOut(auth);
+            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+          } catch (reAuthError) {
+            console.error('Failed to re-authenticate admin:', reAuthError);
+          }
         }
 
         if (error.code === 'auth/email-already-in-use') {
