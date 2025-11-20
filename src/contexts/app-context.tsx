@@ -50,6 +50,25 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Store admin credentials in memory ONLY. This is not secure for production but works for this dev environment.
 let adminCredentials: { email: string; password: string } | null = null;
 
+// Helper to get admin credentials (checks both memory and sessionStorage)
+const getAdminCredentials = () => {
+  if (adminCredentials) return adminCredentials;
+  
+  // Try to recover from sessionStorage
+  if (typeof window !== 'undefined') {
+    const stored = sessionStorage.getItem('admin_creds');
+    if (stored) {
+      try {
+        adminCredentials = JSON.parse(stored);
+        return adminCredentials;
+      } catch (e) {
+        console.error('Failed to parse stored credentials');
+      }
+    }
+  }
+  return null;
+};
+
 // Lock to prevent auth state changes during user creation
 let isCreatingUser = false;
 
@@ -183,6 +202,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     signOut(auth);
     setCurrentUser(null);
     adminCredentials = null; // Clear credentials on logout
+    sessionStorage.removeItem('admin_creds'); // Clear from sessionStorage too
+    sessionStorage.removeItem('creating_user'); // Clear creation lock
   }, [auth]);
 
   // --- Auth Effect: The new, stable core of authentication ---
@@ -255,6 +276,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         // The onSnapshot listener will fire again once the document is created, setting the user correctly.
       }
     }, (error) => {
+      // Don't show errors during user creation
+      if (isInUserCreationMode()) {
+        console.log('🔒 Suppressing error during user creation:', error.code);
+        return;
+      }
       console.error("Error fetching user document:", error);
       logout();
     });
@@ -266,8 +292,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
 
     const email = credential;
-    // Store credentials in memory for re-login if admin creates a user
+    // Store credentials in memory AND sessionStorage for re-login if admin creates a user
     adminCredentials = { email, password };
+    sessionStorage.setItem('admin_creds', JSON.stringify({ email, password }));
+    console.log('✅ Admin credentials stored for user creation (memory + sessionStorage)');
     await signInWithEmailAndPassword(auth, email, password);
   };
   
@@ -599,10 +627,16 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     if (!currentUser) throw new Error("You must be logged in to create users.");
     
-    // CRITICAL: Verify admin credentials are stored
-    if (!adminCredentials?.email || !adminCredentials?.password) {
-      throw new Error("Admin session not properly initialized. Please log out and log back in.");
+    // CRITICAL: Verify admin credentials are stored (check both memory and sessionStorage)
+    const creds = getAdminCredentials();
+    if (!creds?.email || !creds?.password) {
+      console.error('❌ Admin credentials not found');
+      throw new Error("Session expired. Please log out and log back in to create users.");
     }
+    
+    // Update the global variable
+    adminCredentials = creds;
+    console.log('✅ Admin credentials verified:', creds.email);
     
     // CRITICAL: Set lock to prevent auth state changes (both in memory and sessionStorage)
     isCreatingUser = true;
