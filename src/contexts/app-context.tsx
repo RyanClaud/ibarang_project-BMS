@@ -85,6 +85,21 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Restore admin credentials from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !adminCredentials) {
+      const stored = sessionStorage.getItem('admin_creds');
+      if (stored) {
+        try {
+          adminCredentials = JSON.parse(stored);
+          console.log('✅ Admin credentials restored from sessionStorage');
+        } catch (e) {
+          console.error('Failed to restore credentials:', e);
+        }
+      }
+    }
+  }, []);
 
   // --- Barangay Config Query ---
   const barangayConfigDocRef = useMemoFirebase(() => {
