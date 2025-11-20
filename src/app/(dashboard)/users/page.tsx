@@ -53,17 +53,23 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (userId: string) => {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    const confirmMessage = 
+      'Are you sure you want to disable this user account?\n\n' +
+      '⚠️ Note: The user will be blocked from logging in, but their Firebase Authentication account will remain in the system.\n\n' +
+      'To completely remove the auth account, you need to delete it manually from Firebase Console → Authentication.';
+    
+    if (confirm(confirmMessage)) {
       try {
         await deleteUser(userId);
         toast({
-          title: 'User Deleted',
-          description: 'The user has been removed from the system.',
+          title: 'User Account Disabled',
+          description: 'The user has been disabled and cannot log in. Their auth account remains in Firebase Console.',
+          duration: 5000,
         });
       } catch (error) {
         toast({
           title: 'Error',
-          description: 'Failed to delete user.',
+          description: 'Failed to disable user account.',
           variant: 'destructive',
         });
       }
@@ -236,16 +242,17 @@ export default function UsersPage() {
             setLastCreationTime(Date.now());
             setIsAddDialogOpen(false);
             toast({
-              title: 'Staff Account Created',
-              description: `${userData.name} has been added as ${userData.role}. Page will refresh to complete setup.`,
-              duration: 2000,
+              title: 'Staff Account Created Successfully',
+              description: `${userData.name} has been added as ${userData.role}. Page will refresh in 4 seconds...`,
+              duration: 4000,
             });
             
             // CRITICAL: Force page reload to ensure clean state
-            // This prevents any lingering auth state issues
+            // Increased delay to allow user to see the success message and any console logs
             setTimeout(() => {
+              console.log('🔄 Reloading page to complete user creation...');
               window.location.reload();
-            }, 2000);
+            }, 4000); // Increased from 2 to 4 seconds
           } catch (error: any) {
             // Error toast is already shown in the dialog
             throw error;

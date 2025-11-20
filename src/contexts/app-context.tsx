@@ -638,22 +638,25 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         await setDoc(userRef, newUser);
         console.log('✅ User document created with role:', newUser.role);
         
-        // Step 3: Wait a moment to ensure Firestore write is complete
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Step 3: Wait to ensure Firestore write is complete
+        console.log('⏳ Waiting for Firestore write to complete...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Step 4: Sign out the new user IMMEDIATELY
         await signOut(auth);
         console.log('✅ New user signed out');
         
-        // Step 5: Wait another moment before re-auth
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Step 5: Wait before re-auth
+        console.log('⏳ Preparing to re-authenticate admin...');
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         // Step 6: Re-authenticate as admin
         await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
         console.log('✅ Admin re-authenticated');
         
         // Step 7: Wait for auth state to stabilize
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased wait time
+        console.log('⏳ Stabilizing auth state...');
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Increased to 1.5 seconds
         
         // Step 8: Release the lock
         isCreatingUser = false;
