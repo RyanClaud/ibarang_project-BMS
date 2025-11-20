@@ -237,12 +237,19 @@ export default function UsersPage() {
           }
           
           setIsCreatingUser(true);
-          
-          // CRITICAL: Redirect to isolated loading page to prevent query errors
-          router.push('/creating-user');
+          setIsAddDialogOpen(false);
           
           try {
-            await addUser(userData);
+            // Start the user creation process (this will set the lock)
+            // Don't await yet - let it run in background
+            const userCreationPromise = addUser(userData);
+            
+            // CRITICAL: Redirect to isolated loading page immediately
+            // This prevents queries from running while user is being created
+            router.push('/creating-user');
+            
+            // Now wait for user creation to complete
+            await userCreationPromise;
             setLastCreationTime(Date.now());
             
             // Success - the loading page will redirect back automatically
@@ -252,8 +259,11 @@ export default function UsersPage() {
             sessionStorage.removeItem('creating_user');
             router.push('/settings?tab=users');
             
-            // Error toast is already shown in the dialog
-            throw error;
+            toast({
+              title: 'Failed to Create User',
+              description: error.message || 'An error occurred while creating the user.',
+              variant: 'destructive',
+            });
           } finally {
             setIsCreatingUser(false);
           }
