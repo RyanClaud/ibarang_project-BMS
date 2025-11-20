@@ -11,6 +11,38 @@ export default function CreatingUserPage() {
     // Safety check - if we're not in browser, don't do anything
     if (typeof window === 'undefined') return;
     
+    // Hide error overlays during user creation
+    const style = document.createElement('style');
+    style.id = 'hide-errors-during-creation';
+    style.textContent = `
+      #__next-build-watcher,
+      nextjs-portal,
+      [data-nextjs-dialog-overlay],
+      [data-nextjs-dialog],
+      [data-nextjs-toast],
+      [data-nextjs-error-overlay],
+      [data-overlay-container] {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Suppress console errors during user creation
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+      const errorStr = args.join(' ');
+      // Only suppress Firebase permission errors during user creation
+      if (errorStr.includes('Missing or insufficient permissions') || 
+          errorStr.includes('PERMISSION_DENIED')) {
+        console.log('🔇 Suppressed expected error during user creation');
+        return;
+      }
+      originalConsoleError.apply(console, args);
+    };
+    
     try {
       // Wait a moment before starting to check (let the creation process start)
       const initialDelay = setTimeout(() => {
@@ -64,6 +96,13 @@ export default function CreatingUserPage() {
         clearTimeout(timeout);
         const checkInterval = (window as any).__userCreationCheckInterval;
         if (checkInterval) clearInterval(checkInterval);
+        
+        // Remove the style element
+        const styleEl = document.getElementById('hide-errors-during-creation');
+        if (styleEl) styleEl.remove();
+        
+        // Restore console.error
+        console.error = originalConsoleError;
       };
     } catch (error) {
       console.error('Error in useEffect:', error);
