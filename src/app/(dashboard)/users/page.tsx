@@ -251,8 +251,7 @@ export default function UsersPage() {
             // On error, clear the lock and go back
             sessionStorage.removeItem('creating_user');
             router.push('/settings?tab=users');
-            throw error;
-          } catch (error: any) {
+            
             // Error toast is already shown in the dialog
             throw error;
           } finally {
