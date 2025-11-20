@@ -8,46 +8,67 @@ export default function CreatingUserPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Wait a moment before starting to check (let the creation process start)
-    const initialDelay = setTimeout(() => {
-      // Check if we're still in user creation mode
-      const checkStatus = setInterval(() => {
-        const isCreating = sessionStorage.getItem('creating_user') === 'true';
-        
-        if (!isCreating) {
-          // User creation complete, wait a bit more then do a HARD RELOAD
-          clearInterval(checkStatus);
-          console.log('✅ User creation complete - waiting 1 second before reload');
-          
-          // Wait 1 second to ensure all Firebase operations are complete
-          setTimeout(() => {
-            console.log('🔄 Performing hard reload to ensure clean state');
-            // Use window.location for hard reload (clears all React state)
+    // Safety check - if we're not in browser, don't do anything
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Wait a moment before starting to check (let the creation process start)
+      const initialDelay = setTimeout(() => {
+        // Check if we're still in user creation mode
+        const checkStatus = setInterval(() => {
+          try {
+            const isCreating = sessionStorage.getItem('creating_user') === 'true';
+            
+            if (!isCreating) {
+              // User creation complete, wait a bit more then do a HARD RELOAD
+              clearInterval(checkStatus);
+              console.log('✅ User creation complete - waiting 1 second before reload');
+              
+              // Wait 1 second to ensure all Firebase operations are complete
+              setTimeout(() => {
+                console.log('🔄 Performing hard reload to ensure clean state');
+                // Use window.location for hard reload (clears all React state)
+                window.location.href = '/settings?tab=users';
+              }, 1000);
+            }
+          } catch (error) {
+            console.error('Error checking creation status:', error);
+            // On error, just reload
+            clearInterval(checkStatus);
             window.location.href = '/settings?tab=users';
-          }, 1000);
+          }
+        }, 500);
+        
+        // Store interval ID for cleanup
+        (window as any).__userCreationCheckInterval = checkStatus;
+      }, 1000);
+
+      // Timeout after 15 seconds (safety)
+      const timeout = setTimeout(() => {
+        try {
+          const checkInterval = (window as any).__userCreationCheckInterval;
+          if (checkInterval) clearInterval(checkInterval);
+          sessionStorage.removeItem('creating_user');
+          console.log('⏱️ Timeout reached - performing hard reload');
+          window.location.href = '/settings?tab=users';
+        } catch (error) {
+          console.error('Error in timeout handler:', error);
+          window.location.href = '/settings?tab=users';
         }
-      }, 500);
-      
-      // Store interval ID for cleanup
-      (window as any).__userCreationCheckInterval = checkStatus;
-    }, 1000);
+      }, 15000);
 
-    // Timeout after 15 seconds (safety)
-    const timeout = setTimeout(() => {
-      const checkInterval = (window as any).__userCreationCheckInterval;
-      if (checkInterval) clearInterval(checkInterval);
-      sessionStorage.removeItem('creating_user');
-      console.log('⏱️ Timeout reached - performing hard reload');
+      return () => {
+        clearTimeout(initialDelay);
+        clearTimeout(timeout);
+        const checkInterval = (window as any).__userCreationCheckInterval;
+        if (checkInterval) clearInterval(checkInterval);
+      };
+    } catch (error) {
+      console.error('Error in useEffect:', error);
+      // On any error, just redirect
       window.location.href = '/settings?tab=users';
-    }, 15000);
-
-    return () => {
-      clearTimeout(initialDelay);
-      clearTimeout(timeout);
-      const checkInterval = (window as any).__userCreationCheckInterval;
-      if (checkInterval) clearInterval(checkInterval);
-    };
-  }, [router]);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
