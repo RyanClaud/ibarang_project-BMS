@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/firebase/admin';
+import { getAdminAuth, getAdminDb } from '@/firebase/admin';
 
 export async function POST(request: NextRequest) {
   try {
+    // Get admin instances
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
+
     const body = await request.json();
     const { email, password, name, role, barangayId, adminUid } = body;
 
@@ -72,9 +76,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle admin SDK not initialized
+    if (error.message?.includes('not initialized')) {
+      return NextResponse.json(
+        { error: 'Server configuration error. Please contact administrator.' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { error: error.message || 'Failed to create staff account' },
       { status: 500 }
     );
   }
 }
+
+// Disable static generation for this API route
+export const dynamic = 'force-dynamic';
